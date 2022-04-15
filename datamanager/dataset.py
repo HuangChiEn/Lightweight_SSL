@@ -10,8 +10,8 @@ DS_DICT = {
     #   1. FGVC Aircraft (x),  2. Standford Cars (x),  3. Caltech101,  4. CIFAR10/100,  5. DTD(x)
     #   6. Flowers(x),  7. Food(x),  8. Pets(x),  9. SUN397(x),  10. VOC2007
     
-    'CIFAR10' : getattr(dset, 'CIFAR10'),
-    'CIFAR100' : getattr(dset, 'CIFAR100'),
+    'Cifar10' : getattr(dset, 'CIFAR10'),
+    'Cifar100' : getattr(dset, 'CIFAR100'),
     'Caltech101' : getattr(dset, 'Caltech101'),
     'Caltech256' : getattr(dset, 'Caltech256'),
     'CelebA' : getattr(dset, 'CelebA'),
@@ -80,12 +80,11 @@ class InfoSpec:
     num_classes: int
     total_img: int
     img_shape: Tuple[int, int, int]
-    norm_trfs: transforms.Normalize
-
+    
 # Collect the dataset information from tfds catelog : https://www.tensorflow.org/datasets/catalog/overview?hl=zh-tw#all_datasets
 DS_INFO = {
-    'CIFAR10' : InfoSpec(10, 60000, (3, 32, 32), transforms.Normalize(mean=[0.491, 0.482, 0.447], std=[0.247, 0.243, 0.262])),
-    'CIFAR100' : InfoSpec(100, 60000, (3, 32, 32), transforms.Normalize(mean=[0.507, 0.487, 0.441], std=[0.267, 0.256, 0.276])),
+    'CIFAR10' : InfoSpec(10, 60000, (3, 32, 32)),
+    'CIFAR100' : InfoSpec(100, 60000, (3, 32, 32)),
 
 }
 

@@ -5,14 +5,14 @@ from typing import Any, Callable, List, Optional, Sequence, Type, Union
 from pytorch_lightning import LightningDataModule
 
 #  dataset, trfs
-from . import DS_DICT, DS_INFO
+from datamanager.dataset import DS_DICT, DS_INFO
 from torchvision.datasets import ImageFolder
 from torch.utils.data import DataLoader, random_split
 
 
 class DataModule(LightningDataModule):
     
-    def __init__(self, data_dir: str = "./tch_ds", ds_name:str = ''):
+    def __init__(self, data_dir: str = "../tch_ds", ds_name:str = ''):
         super().__init__()
         self.ds_name = ds_name
         self.data_dir = data_dir
@@ -51,7 +51,7 @@ class DataModule(LightningDataModule):
         # download testing set
         DS_DICT[self.ds_name](self.data_dir, train=False, download=True)
 
-    def setup(self, stage: Optional[str] = None, valid_split: List[int, int] = None):
+    def setup(self, stage = None, valid_split = None):
         # Assign train/val datasets for use in dataloaders
         if stage == "train" or stage is None:
             full_tra_ds =  DS_DICT[self.ds_name](self.data_dir, train=True, transform=self.transform)

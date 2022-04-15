@@ -1,14 +1,11 @@
-from transformer import prepare_trfs
-from data_module import DataModule
-from dataset import DS_DICT
+from datamanager.transformer import Transform_builder
+from datamanager.data_module import DataModule
+from datamanager.dataset import DS_DICT
 
-def get_datamanager(dataset, aug_crop_lst):
-    if not self.ds_name in DS_DICT:
-        raise ValueError("The given dataset is not supported by torchvision.dataset")
-        
-    trfs = prepare_trfs(aug_crop_lst)
-    return DataModule(dataset, trfs)
-
-
-def get_custom_datamanager(dataset, aug_crop_lst, custom_ds_cfg):
-    raise NotImplementedError('Not Implemented')
+def get_datamanager(ds_name, aug_crop_lst, custom_ds_cfg=None):    
+    if custom_ds_cfg:
+        pass
+    else:
+        trfs_builder = Transform_builder(ds_name)
+        trfs = trfs_builder.prepare_n_crop_transform(aug_crop_lst)
+    return DataModule(ds_name=ds_name)

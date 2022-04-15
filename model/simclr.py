@@ -24,7 +24,8 @@ import torch
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import numpy as np
-from utils import AverageMeter
+from util_tool.utils import AverageMeter
+               
                
 class Model(pl.Module):
     def __init__(self, feature_extractor):

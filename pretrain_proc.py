@@ -1,22 +1,19 @@
 from pytorch_lightning import seed_everything
-from datamanager import get_datamanager, get_custom_datamanager
+from datamanager import get_datamanager
 from model import get_backbone, wrap_ssl_method
-
 
 ## HACKME : add auto_resumer
 def main(cfger):
     # 0. confirm repoducerbility
     tra_determin = False
     if cfger.seed != -1:
-        seed_everything(cfger.seed, worker=True)
+        seed_everything(cfger.seed, workers=True)
         tra_determin = True
 
     # 1. prepare dataset
-    if cfger.custom_ds_cfg:
-        ds = get_custom_datamanager(cfger.dataset, cfger.aug_crop_lst, cfger.custom_ds_cfg)
-    else:    
-        ds = get_datamanager(cfger.dataset, cfger.aug_crop_lst)
-        ds.setup(stage='train')
+    ds = get_datamanager(cfger.dataset, cfger.aug_crop_lst)
+    ds.prepare_data()
+    ds.setup(stage='train')
 
     # 2. prepare SSL model
     res_net = get_backbone(cfger.backbone)
@@ -33,10 +30,11 @@ def main(cfger):
 
 
 if __name__ == "__main__":
+    import os
     import logging
     from easy_configer.Configer import Configer
     
-    cfger = Configer("The configuration for pretrain phase of SSL.", cmd_true=True)
+    cfger = Configer("The configuration for pretrain phase of SSL.", cmd_args=True)
     cfger.cfg_from_ini( os.environ['CONFIGER_PATH'] )
 
     # loggin level setup
