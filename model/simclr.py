@@ -27,88 +27,73 @@ import numpy as np
 from util_tool.utils import AverageMeter
                
                
-class Model(pl.Module):
-    def __init__(self, feature_extractor):
-        super(Model, self).__init__()
+class SimCLR(pl.LightningModule):
 
-        self.net = nn.Sequential(collections.OrderedDict([
-          ("feature_extractor", feature_extractor)
-        ]))
-
-        self.head = nn.Sequential(collections.OrderedDict([
-          ("linear1",  nn.Linear(feature_extractor.feature_size, 256)),
-          ("bn1",      nn.BatchNorm1d(256)),
-          ("relu",     nn.LeakyReLU()),
-          ("linear2",  nn.Linear(256, 64)),
-        ]))
+    def __init__(self, feature_extractor, temperature):
+        self.backbone = feature_extractor
+        self.projector = nn.Sequential(
+            nn.Linear(self.features_dim, proj_hidden_dim),
+            nn.ReLU(),
+            nn.Linear(proj_hidden_dim, proj_output_dim),
+        )
+        self.classifier = nn.Linear(self.features_dim, num_classes)
+        self.temperature = temperature
 
     def configure_optimizers(self):
-        self.optimizer = Adam([{"params": self.net.parameters(), "lr": 0.001},
-                               {"params": self.head.parameters(), "lr": 0.001}])
-        return self.optimizer
+        return torch.optim.Adam(self.parameters(), lr=1e-4)
 
-    def return_loss_fn(self, x, t=0.5, eps=1e-8):
-        # Taken from: https://github.com/pietz/simclr/blob/master/SimCLR.ipynb
-        # Estimate cosine similarity
-        n = torch.norm(x, p=2, dim=1, keepdim=True)
-        x = (x @ x.t()) / (n * n.t()).clamp(min=eps)
-        x = torch.exp(x / t)
-        # Put positive pairs on the diagonal
-        idx = torch.arange(x.size()[0])
-        idx[::2] += 1
-        idx[1::2] -= 1
-        x = x[idx]
-        # subtract the similarity of 1 from the numerator
-        x = x.diag() / (x.sum(0) - torch.exp(torch.tensor(1 / t)))
-        # NOTE: some implementation have used the loss `torch.mean(-torch.log(x))`,
-        # but in preliminary experiments we saw that `-torch.log(x.mean())` is slightly
-        # more effective (e.g. 77% vs 76% on CIFAR-10).
-        return -torch.log(x.mean())
+    def forward(self, X: torch.tensor) -> Dict[str, Any]:
+        """Performs the forward pass of the backbone and the projector.
+        Args:
+            X (torch.Tensor): a batch of images in the tensor format.
+        Returns:
+            Dict[str, Any]:
+                a dict containing the outputs of the parent
+                and the projected features.
+        """
+        if not self.no_channel_last:
+            X = X.to(memory_format=torch.channels_last)
 
-    def train(self, epoch, train_loader):
-        start_time = time.time()
-        self.net.train()
-        self.head.train()
-        loss_meter = AverageMeter()
-        statistics_dict = {}
-        for i, (data, data_augmented, _) in enumerate(train_loader):
-            data = torch.stack(data_augmented, dim=1)
-            d = data.size()
-            train_x = data.view(d[0]*2, d[2], d[3], d[4]).to(self.op_device)
-            
-            self.optimizer.zero_grad()                     
-            features = self.net(train_x)
-            tot_pairs = int(features.shape[0]*features.shape[0])
-            embeddings = self.head(features)
-            loss = self.return_loss_fn(embeddings)
-            loss_meter.update(loss.item(), features.shape[0])
-            loss.backward()
-            self.optimizer.step()
-            print(f'idx : {i}')
-            if(i==0):
-                statistics_dict["batch_size"] = data.shape[0]
-                statistics_dict["tot_pairs"] = tot_pairs
+        feats = self.backbone(X)
+        z = self.projector(feats)
+        logits = self.classifier(feats.detach())
 
-        elapsed_time = time.time() - start_time 
-        print("Epoch [" + str(epoch) + "]"
-               + "[" + str(time.strftime("%H:%M:%S", time.gmtime(elapsed_time))) + "]"
-               + " loss: " + str(loss_meter.avg)
-               + "; batch-size: " + str(statistics_dict["batch_size"])
-               + "; tot-pairs: " + str(statistics_dict["tot_pairs"]))
-                             
-        return loss_meter.avg, -loss_meter.avg
-
-    def save(self, file_path="./checkpoint.dat"):
-        feature_extractor_state_dict = self.net.feature_extractor.state_dict()
-        head_state_dict = self.head.state_dict()
-        optimizer_state_dict = self.optimizer.state_dict()
-        torch.save({"backbone": feature_extractor_state_dict,
-                    "head": head_state_dict,
-                    "optimizer": optimizer_state_dict}, 
-                    file_path)
+        return {'z':z, 'logits':logits}
         
-    def load(self, file_path):
-        checkpoint = torch.load(file_path)
-        self.net.feature_extractor.load_state_dict(checkpoint["backbone"])
-        self.head.load_state_dict(checkpoint["head"])
-        self.optimizer.load_state_dict(checkpoint["optimizer"])
+    def training_step(self, batch: Sequence[Any], batch_idx: int) -> torch.Tensor:
+        """Training step for SimCLR reusing BaseMethod training step.
+        Args:
+            batch (Sequence[Any]): a batch of data in the format of [img_indexes, [X], Y], where
+                [X] is a list of size num_crops containing batches of images.
+            batch_idx (int): index of the batch.
+        Returns:
+            torch.Tensor: total loss composed of SimCLR loss and classification loss.
+        """
+        indexes, X, target = batch
+        # for support num_n_crop function
+        X = [X] if isinstance(X, torch.Tensor) else X
+        # but we does not support multicrop now ~
+        tmp_outs = list()
+        for x in X:         # perform forward function to each view 
+            out = self(x)   # default V*B=2B, B:batch, V:view
+            tmp_outs.append(out)
+        # merge all outputs according to the same key
+        outs = {k: [out[k] for out in tmp_outs] for k in tmp_outs[0].keys()}
+        z = torch.cat(out["z"])
+
+        # ------- contrastive loss -------
+        #n_augs = self.num_large_crops + self.num_small_crops
+        #indexes = indexes.repeat(n_augs)
+
+        z = gather(z)
+        indexes = gather(indexes)
+
+        nce_loss = simclr_loss_func(
+            z,
+            indexes=indexes,
+            temperature=self.temperature,
+        )
+
+        self.log("train_nce_loss", nce_loss, on_epoch=True, sync_dist=True)
+
+        return nce_loss + class_loss

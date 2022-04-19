@@ -1,4 +1,5 @@
 import torch
+from torch import nn
 
 class FocalLoss(torch.nn.Module):
     """Sigmoid focal cross entropy loss.

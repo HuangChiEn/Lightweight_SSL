@@ -1,0 +1,14 @@
+Metadata-Version: 1.1
+Name: lightweight-ssl
+Version: 1.0.0
+Summary: An lightweight benchmark for Self-Supervised Learning
+Home-page: https://github.com/HuangChiEn/
+Author: JosefHuang
+Author-email: a3285556aa@gmail.com
+License: MIT
+Description: UNKNOWN
+Keywords: lightweight framework,self-supervised learning,pytorch_lighting
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9

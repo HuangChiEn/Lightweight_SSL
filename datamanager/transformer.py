@@ -114,20 +114,21 @@ class Transform_builder(object):
         """
         self.trfs_lst = []
         kwargs = [kwargs] if isinstance(kwargs, dict) else kwargs
-
         for args in kwargs:
             # limited with kw-args only
-            if dataset in ['Cifar10', 'Cifar100']:
+            if dataset in ['cifar10', 'cifar100']:
                 self.trfs_lst.append( CifarTransform(cifar=dataset, **args) ) 
             elif dataset == "stl10":
                 self.trfs_lst.append( STLTransform(**args) )  
-            elif dataset in ['imagenet', 'imagenet100']:
+            elif dataset == "slim":
+                self.trfs_lst.append( SlimTransform(**args) )
+            elif dataset in ['imagenet']: 
                 self.trfs_lst.append(  ImagenetTransform(**args) )  
             elif dataset == "custom":
                 self.trfs_lst.append(  StandardTransform(**args) )  
             else:
                 raise ValueError(f"{dataset} is not currently supported.")
-
+           
     def debug_transformation(self):
         print("Transforms:")
         pprint(self.trfs_lst)
@@ -143,7 +144,7 @@ class Transform_builder(object):
             NCropAugmentation: an N crop transformation.
         """
 
-        assert len(self.trfs_lst) == len(num_crops_per_aug)
+        assert len(num_crops_per_aug) <= 2, "The multi-crop is not supported currently"
 
         T = []
         for transform, num_crops in zip(self.trfs_lst, num_crops_per_aug):
@@ -242,7 +243,7 @@ class CifarTransform(StandardTransform):
     crop_size: int = 32
     
     def __post_init__(self):
-        if self.cifar == "Cifar10":
+        if self.cifar == "cifar10":
             self.mean = (0.4914, 0.4822, 0.4465)
             self.std = (0.2470, 0.2435, 0.2616)
         else:
@@ -263,6 +264,20 @@ class STLTransform(StandardTransform):
     def __post_init__(self):
         self.mean = (0.4914, 0.4823, 0.4466)
         self.std = (0.247, 0.243, 0.261)
+        super().__attrs_post_init__()
+
+
+@attr.s(auto_attribs=True)
+class SlimTransform(StandardTransform):
+    """Class that applies Slimagenet transformations.
+    Args:
+        crop_size (int, optional): size of the crop. Defaults to 96.
+    """
+    crop_size: int = 64
+
+    def __post_init__(self):
+        self.mean = (0.5, 0.5, 0.5)
+        self.std = (0.25, 0.25, 0.25)
         super().__attrs_post_init__()
 
 
