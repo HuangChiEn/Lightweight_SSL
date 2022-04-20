@@ -61,8 +61,6 @@ class DataModule(LightningDataModule):
 
 
     def setup(self, stage = 'train', valid_split = None):
-        assert valid_split[0] + valid_split[1] == 1.0
-        tra_ratio = valid_split[0]
         self.prepare_data()
 
         ds = DS_DICT[self.ds_name]
@@ -71,6 +69,9 @@ class DataModule(LightningDataModule):
             full_tra_ds = ds['data'](self.data_dir, train=True, transform=self._train_trfs) if ds['info'].split \
                             else ds['data'](self.data_dir, transform=self._train_trfs)
             if valid_split:
+                assert valid_split[0] + valid_split[1] == 1.0
+                tra_ratio = valid_split[0]
+        
                 train_set_size = int(len(full_tra_ds)*tra_ratio)
                 valid_set_size = len(full_tra_ds) - train_set_size
                 self.train_dset, self.valid_dset = random_split(full_tra_ds, [train_set_size, valid_set_size])
@@ -87,7 +88,7 @@ class DataModule(LightningDataModule):
 
     # overwrite base class methods
     def train_dataloader(self, batch_size=32, shuffle=True, num_workers=2):
-        return DataLoader(self.train_dset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+        return DataLoader(self.train_dset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, drop_last=True)
 
     def val_dataloader(self, batch_size=32, shuffle=True, num_workers=2):
         return DataLoader(self.valid_dset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)

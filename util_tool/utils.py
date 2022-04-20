@@ -1,43 +1,72 @@
-import torch
 import logging
+import torch
+import torch.distributed as dist
+from pytorch_lightning.loggers import WandbLogger
 
-def print_info(model=None):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if model:
-        tot_params = sum(p.numel() for p in feature_extractor.parameters() if p.requires_grad)
-        print(f"[INFO] {feature_extractor.name} loaded in memory.")
-        print(f"[INFO] Feature size: {feature_extractor.feature_size}")
-        print(f"[INFO] Feature extractor TOT trainable params: {tot_params}")
-    if(torch.cuda.is_available() == False): 
-        print("[WARNING] CUDA is not available.")
-    else:
-        print(f"[INFO] Found {torch.cuda.device_count()} GPU(s) available.")
-
-    print(f"[INFO] Device type: {device}") 
-
-
-def load_ckpt(model, checkpoint):
-    # NOTE: the checkpoint must be loaded AFTER 
-    # the model has been allocated into the device.
-    if(checkpoint!=""):
-        print("Loading checkpoint: " + str(checkpoint))
-        model.load(checkpoint)
-        print("Loading checkpoint: Done!")
-    return model
+def get_wandb_logger(cfger):
+    wandb_logger = WandbLogger(
+        name=cfger.usr_name,
+        project=cfger.proj_name,
+        entity=cfger.entity,
+        offline=cfger.offline,
+    )
+    wandb_logger.log_hyperparams(cfger)
+    return wandb_logger
 
 
-def accuracy(output, target, topk=(1,)):
-    """Computes the precision@k for the specified values of k"""
-    maxk = max(topk)
-    batch_size = target.size(0)
+class GatherLayer(torch.autograd.Function):
+    """
+    Gathers tensors from all process and supports backward propagation
+    for the gradients across processes.
+    """
 
-    _, pred = output.topk(maxk, 1, True, True)
+    @staticmethod
+    def forward(ctx, x):
+        if dist.is_available() and dist.is_initialized():
+            output = [torch.zeros_like(x) for _ in range(dist.get_world_size())]
+            dist.all_gather(output, x)
+        else:
+            output = [x]
+        return tuple(output)
+
+    @staticmethod
+    def backward(ctx, *grads):
+        if dist.is_available() and dist.is_initialized():
+            all_gradients = torch.stack(grads)
+            dist.all_reduce(all_gradients)
+            grad_out = all_gradients[get_rank()]
+        else:
+            grad_out = grads[0]
+        return 
+
+def dist_gather(X, dim=0):
+    """Gathers tensors from all processes, supporting backward propagation."""
+    gather_tnsr = torch.cat(GatherLayer.apply(X), dim=dim)
+    gather_tnsr = [gather_tnsr] if not isinstance(gather_tnsr, list) else gather_tnsr
+    return torch.cat(gather_tnsr)
+
+#with torch.no_grad():
+@torch.no_grad()
+def accuracy_at_k(outputs, targets, top_k = (1, 5)):
+    """Computes the accuracy over the k top predictions for the specified values of k.
+    Args:
+        outputs (torch.Tensor): output of a classifier (logits or probabilities).
+        targets (torch.Tensor): ground truth labels.
+        top_k (Sequence[int], optional): sequence of top k values to compute the accuracy over.
+            Defaults to (1, 5).
+    Returns:
+        Sequence[int]:  accuracies at the desired k.
+    """
+    maxk = max(top_k)
+    batch_size = targets.size(0)
+
+    _, pred = outputs.topk(maxk, 1, True, True)
     pred = pred.t()
-    correct = pred.eq(target.view(1, -1).expand_as(pred))
+    correct = pred.eq(targets.view(1, -1).expand_as(pred))
 
     res = []
-    for k in topk:
-        correct_k = correct[:k].view(-1).float().sum(0)
+    for k in top_k:
+        correct_k = correct[:k].contiguous().view(-1).float().sum(0, keepdim=True)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
 

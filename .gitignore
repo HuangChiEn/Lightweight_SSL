@@ -1,1 +1,2 @@
-tch_ds/*
+logs/*
+*.egg-info/*
