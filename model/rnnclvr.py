@@ -19,10 +19,11 @@ from torch.optim import SGD, Adam
 import torch.nn.functional as F
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
-from util_tool.utils import dist_gather, accuracy_at_k
+from util_tool.utils import dist_gather, accuracy_at_k, device_as
 from torch.nn.functional import softmax
 from model.losses.focal_loss import FocalLoss
 import pytorch_lightning as pl
+
 
 class RNN_CLVR(pl.LightningModule):
     
@@ -48,7 +49,7 @@ class RNN_CLVR(pl.LightningModule):
         self.relation_module = nn.Sequential(collections.OrderedDict([
           ("linear1",  nn.Linear(proj_output_dim*resizer, proj_output_dim)),
           ("bn1",      nn.BatchNorm1d(proj_output_dim)),
-          ("relu1",     nn.LeakyReLU()),
+          ("relu1",     nn.ReLU()),
           ("linear2",  nn.Linear(proj_output_dim, 1)),   # output unbounded logits (batch_size x logit)
         ]))
         
@@ -64,10 +65,10 @@ class RNN_CLVR(pl.LightningModule):
         self.projector = nn.Sequential(collections.OrderedDict([
             ("linear1", nn.Linear(self.backbone.inplanes, proj_hidden_dim)),  # avgpool2d output 512 dim vec
             ("bn1",     nn.BatchNorm1d(proj_hidden_dim)),
-            ("relu1",   nn.LeakyReLU()),
+            ("relu1",   nn.ReLU()),
             ("linear2", nn.Linear(proj_hidden_dim, proj_hidden_dim)),
             ("bn2",     nn.BatchNorm1d(proj_hidden_dim)),
-            ("relu2",   nn.LeakyReLU()),
+            ("relu2",   nn.ReLU()),
             ("linear3", nn.Linear(proj_hidden_dim, proj_output_dim)),
             ("bn3", nn.BatchNorm1d(proj_output_dim)),
         ]))
@@ -75,11 +76,11 @@ class RNN_CLVR(pl.LightningModule):
         self.predictor = nn.Sequential(collections.OrderedDict([
             ("linear1",  nn.Linear(proj_output_dim, pred_hidden_dim)),
             ("bn1",      nn.BatchNorm1d(pred_hidden_dim)),
-            ("relu1",     nn.LeakyReLU()),
+            ("relu1",     nn.ReLU()),
             ("linear2",  nn.Linear(pred_hidden_dim, proj_output_dim)),
         ]))
         
-        self.loss_fn = nn.CrossEntropyLoss() #FocalLoss(gamma=2.0, alpha=0.5) if focal else nn.BCEWithLogitsLoss()
+        self.loss_fn = nn.CrossEntropyLoss()
     
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=0.001)
@@ -180,7 +181,8 @@ class RNN_CLVR(pl.LightningModule):
                         self.nn_relation_estimation(outs['z'], outs['p'])
         
         prb_v1, prb_v2 = self.logit2prob(logit_lst1), self.logit2prob(logit_lst2)
-        gt_prb = torch.zeros([prb_v1.shape[0]], dtype=torch.long).to('cuda') # to device is needed, lighting bug.. 
+        gt_prb = torch.zeros([prb_v1.shape[0]], dtype=torch.long) 
+        gt_prb = device_as(gt_prb, prb_v1)  # to device is needed, lighting bug.. 
         
         # compute nn accuracy
         b = targets.shape[0]

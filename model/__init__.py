@@ -2,11 +2,12 @@
 from torch import nn
 import torchvision.models as model_hub
 from model.rnnclvr import RNN_CLVR
-#from model.simclr import Sim_CLR
+from model.simclr import Sim_CLR
 
 SSL_METHODS = {
     'rnnclvr' : RNN_CLVR,
-    #'simclr' : Sim_CLR
+    'simclr' : Sim_CLR,
+    #'simsiam' : Sim_Siam,
 }
 
 def get_backbone(backbone_type): 

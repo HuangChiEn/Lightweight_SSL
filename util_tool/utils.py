@@ -70,6 +70,11 @@ def accuracy_at_k(outputs, targets, top_k = (1, 5)):
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
 
+def device_as(t1, t2):
+   """
+   Moves t1 to the device of t2
+   """
+   return t1.to(t2.device)
 
 class AverageMeter(object):
     """Computes and stores the average and current value

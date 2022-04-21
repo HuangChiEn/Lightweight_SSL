@@ -6,8 +6,8 @@ from model import get_backbone, wrap_ssl_method
 
 from util_tool.utils import get_wandb_logger
 from util_tool.callback import get_model_ckpt
+#from util_tool.auto_resume import resumer
 
-## HACKME : add auto_resumer
 def main(cfger):
     # 0. confirm repoducerbility
     tra_determin = False
