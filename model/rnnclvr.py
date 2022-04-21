@@ -29,6 +29,8 @@ class RNN_CLVR(pl.LightningModule):
     def __init__(self, backbone, aggregation="cat", queue_size=65536, shift_range=2,
                         proj_hidden_dim=2048, proj_output_dim=256, pred_hidden_dim=4096, num_of_cls=100):
         super().__init__()
+        # for record the hyparam while enable the checkpoint call back
+        self.save_hyperparameters() 
         agg_dict = {'cat' : (2, lambda x, y, dims : torch.cat([x, y], dims)), 'sum' : (1, lambda x, y : (x+y)), 
                          'mean' : (1, lambda x, y : (x+y) / float(num_crop)), 'max' : (1, torch.max)}
         support_type = agg_dict.keys()
@@ -170,7 +172,8 @@ class RNN_CLVR(pl.LightningModule):
         outs["acc5"] = sum(outs["acc5"]) / n_viw
         metrics = {  # record the linear protocol results
             "lin_loss": outs["loss"],
-            "lin_acc1": outs["acc1"]
+            "lin_acc1": outs["acc1"],
+            "lin_acc5": outs["acc5"]
         }
         
         logit_lst1, logit_lst2, idx = \

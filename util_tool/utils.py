@@ -3,14 +3,14 @@ import torch
 import torch.distributed as dist
 from pytorch_lightning.loggers import WandbLogger
 
-def get_wandb_logger(cfger):
+def get_wandb_logger(save_dir, name, project, entity, offline):
     wandb_logger = WandbLogger(
-        name=cfger.usr_name,
-        project=cfger.proj_name,
-        entity=cfger.entity,
-        offline=cfger.offline,
+        save_dir=save_dir,
+        name=name,
+        project=project,
+        entity=entity,
+        offline=offline,
     )
-    wandb_logger.log_hyperparams(cfger)
     return wandb_logger
 
 
@@ -45,7 +45,7 @@ def dist_gather(X, dim=0):
     gather_tnsr = [gather_tnsr] if not isinstance(gather_tnsr, list) else gather_tnsr
     return torch.cat(gather_tnsr)
 
-#with torch.no_grad():
+
 @torch.no_grad()
 def accuracy_at_k(outputs, targets, top_k = (1, 5)):
     """Computes the accuracy over the k top predictions for the specified values of k.
@@ -75,7 +75,6 @@ class AverageMeter(object):
     """Computes and stores the average and current value
        Imported from https://github.com/pytorch/examples/blob/master/imagenet/main.py#L247-L262
     """
-
     def __init__(self):
         self.reset()
 
