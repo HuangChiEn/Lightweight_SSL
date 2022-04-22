@@ -165,6 +165,7 @@ class BaseTransform:
         return str(self.transform)
 
 
+
 @attr.s(auto_attribs=True, kw_only=True)
 class StandardTransform(BaseTransform):
     brightness: float = 0.4

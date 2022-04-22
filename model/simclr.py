@@ -3,7 +3,7 @@
 # The MIT License (MIT)
 # Copyright (c) 2022 NoName
 # Paper: "Rethinking of asking help from My Friends: Relation based Nearest-Neighbor Contrastive Learning of Visual Representations", NoName
-# GitHub: https://github.com/HuangChiEn/RNN_CLVR
+# GitHub: https://github.com/HuangChiEn/Lightweight_SSL
 #
 # Implementation of the paper:
 # "A Simple Framework for Contrastive Learning of Visual Representations", Chen et al. (2020)

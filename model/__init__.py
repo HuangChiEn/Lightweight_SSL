@@ -1,13 +1,20 @@
 # The backbone will directly call re-use the torch.hub
 from torch import nn
 import torchvision.models as model_hub
+
 from model.rnnclvr import RNN_CLVR
+from model.nnclr import NN_CLR
 from model.simclr import Sim_CLR
+from model.simsiam import Sim_Siam
+from model.barlow_twin import Barlow_Twin
 
 SSL_METHODS = {
     'rnnclvr' : RNN_CLVR,
+    'nnclr' : NN_CLR,
     'simclr' : Sim_CLR,
-    #'simsiam' : Sim_Siam,
+    'simsiam' : Sim_Siam,
+    'barlowtwin' : Barlow_Twin,
+    #byol : BYOL
 }
 
 def get_backbone(backbone_type): 

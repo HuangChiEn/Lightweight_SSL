@@ -45,6 +45,10 @@ def dist_gather(X, dim=0):
     gather_tnsr = [gather_tnsr] if not isinstance(gather_tnsr, list) else gather_tnsr
     return torch.cat(gather_tnsr)
 
+def get_rank():
+    if dist.is_available() and dist.is_initialized():
+        return dist.get_rank()
+    return 0
 
 @torch.no_grad()
 def accuracy_at_k(outputs, targets, top_k = (1, 5)):

@@ -23,14 +23,17 @@ from torch import nn, Tensor
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 
-from model.losses.simsiam_loss import SimSiamLoss
+from model.losses.barlow_twin_loss import BarlowTwinLoss
 from util_tool.utils import dist_gather, accuracy_at_k
                
                
-class Sim_Siam(pl.LightningModule):
+class Barlow_Twin(pl.LightningModule):
 
-    def __init__(self, backbone, proj_hidden_dim, proj_output_dim, pred_hidden_dim, num_of_cls):
+    def __init__(self, backbone, proj_hidden_dim, proj_output_dim, lamb, scale_loss, num_of_cls):
         super().__init__()
+        self.lamb = lamb
+        self.scale_loss = scale_loss
+
         self.backbone = backbone
         self.projector = nn.Sequential(collections.OrderedDict([
             ("linear1", nn.Linear(self.backbone.inplanes, proj_hidden_dim, bias=False)),  
@@ -42,17 +45,9 @@ class Sim_Siam(pl.LightningModule):
             ("linear3", nn.Linear(proj_hidden_dim, proj_output_dim, affine=False)),  
             ("bn3", nn.BatchNorm1d(proj_output_dim))
         ])
-        self.projector.linear3.bias.requires_grad = False  # hack: not use bias as it is followed by BN
-        
-        self.predictor = nn.Sequential(collections.OrderedDict([
-            ("linear1", nn.Linear(proj_output_dim, pred_hidden_dim)),  
-            ("bn1", nn.BatchNorm1d(pred_hidden_dim)),
-            ("relu1",   nn.ReLU()),
-            ("linear2", nn.Linear(pred_hidden_dim, proj_output_dim))
-        ])
         
         self.classifier = nn.Linear(self.backbone.inplanes, num_of_cls)
-        self.loss_fn = SimSiamLoss()
+        self.loss_fn = Loss()
 
 
     def configure_optimizers(self):

@@ -34,7 +34,8 @@ def main(cfger):
     get_model_ckpt(callbk_lst, **cfger.ckpt_args)
 
     # 4. prepare trainer config from prev def & conduct training loop
-    tra_cfg = {'deterministic':tra_determin, 'logger':logger, 'callbacks':callbk_lst, **cfger.compute_cfg}
+    tra_cfg = {'deterministic':tra_determin, 'logger':logger, 'callbacks':callbk_lst, 
+                'max_epochs':cfger.epochs, **cfger.compute_cfg}
     trainer = Trainer(**tra_cfg)
     trainer.fit(ssl_model, tra_ld)
 
