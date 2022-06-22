@@ -1,21 +1,29 @@
-# python makefile
+# client execution by make
+all: pre_inst cln_cah run
 
-all: clean
+pre_inst:
+	pip install -e .
+	pip install -r requirements.txt
+
+make_req:
+	pip list --format=freeze > requirements.txt
 
 # The running cmd is described in sh script
-run:
-	run_script/run_pretrain.sh
-	run_script/run_eval.sh
+run: cln_cah
+	export CONFIGER_PATH="./run_script/pretrain/simsiam.ini"; \
+	python3 pretrain_proc.py
 
-#.PHONY: test
+#.PHONY: test  # havn't build the test yet..
 #test:
 #    python test/*.py
 
-#.PHONY: release
-#release:
-#    python3 setup.py sdist bdist_wheel upload
+cln_cah:
+	find . -type f -name *.pyc -delete
+	find . -type d -name __pycache__ -delete
 
+cln_ckpt: 
+	find . -type f -name *.ckpt -delete
+	
 .PHONY: clean
-clean:
-    find . -type f -name *.pyc -delete
-    find . -type d -name __pycache__ -delete
+clean: cln_cah cln_ckpt
+	rm ./meta_info/logs/* -rf

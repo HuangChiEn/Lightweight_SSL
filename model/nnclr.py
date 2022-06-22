@@ -24,6 +24,7 @@ from util_tool.utils import dist_gather, accuracy_at_k
                
 class NN_CLR(pl.LightningModule):
     '''arxiv source:https://arxiv.org/pdf/2104.14548.pdf'''
+    #queue: torch.Tensor
 
     def __init__(self, backbone, queue_size, proj_hidden_dim, proj_output_dim, pred_hidden_dim, temperature, num_of_cls):
         super().__init__()
@@ -56,9 +57,8 @@ class NN_CLR(pl.LightningModule):
         self.classifier = nn.Linear(self.backbone.inplanes, num_of_cls)
         self.loss_fn = NearestNeighborLoss(temperature=temperature)
         
-
     def configure_optimizers(self):
-        return Adam(self.parameters(), lr=1e-4)
+        return Adam(self.parameters(), lr=1e-3)
 
     @torch.no_grad()
     def dequeue_and_enqueue(self, z, y):
@@ -154,12 +154,22 @@ class NN_CLR(pl.LightningModule):
         outs["acc1"] = sum(outs["acc1"]) / n_viw
         outs["acc5"] = sum(outs["acc5"]) / n_viw
         metrics = {  # record the linear protocol results
-            "lin_loss": outs["loss"],
+            #"lin_loss": outs["loss"],
             "lin_acc1": outs["acc1"],
             "lin_acc5": outs["acc5"],
-            "nnclr_loss" : nnclr_loss,
+            #"nnclr_loss" : nnclr_loss,
             "nn_acc" : nn_acc
         }
         self.log_dict(metrics, on_step=True, on_epoch=False, sync_dist=True, prog_bar=True)
 
         return nnclr_loss + outs["loss"]
+    
+    ## Progressbar adjustment of output console
+    def on_epoch_start(self):
+        print('\n')
+
+    def get_progress_bar_dict(self):
+        tqdm_dict = super().get_progress_bar_dict()
+        tqdm_dict.pop("v_num", None)
+        tqdm_dict.pop("loss", None)
+        return tqdm_dict

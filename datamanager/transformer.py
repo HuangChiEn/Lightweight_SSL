@@ -296,6 +296,29 @@ class ImagenetTransform(StandardTransform):
         super().__attrs_post_init__()
 
 
+@attr.s(auto_attribs=True, kw_only=True)
+class LinearTransform(BaseTransform):
+    horizontal_flip_prob: float = 0.5
+    min_scale: float = 0.08
+    max_scale: float = 1.0
+    crop_size: int = 224
+    mean: Sequence[float] = (0.485, 0.456, 0.406)
+    std: Sequence[float] = (0.228, 0.224, 0.225)
+
+    def __attrs_post_init__(self):
+        trfs_lst = [
+            transforms.RandomResizedCrop(
+                self.crop_size,
+                scale=(self.min_scale, self.max_scale),
+                interpolation=transforms.InterpolationMode.BICUBIC,
+            ),
+            transforms.RandomHorizontalFlip(p=self.horizontal_flip_prob),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=self.mean, std=self.std),
+        ] # BaseTransform will wrap it into the transform.Composer
+        super().__init__(trfs_lst)
+
+
 if __name__ == "__main__":
     c = CifarTransform(cifar='cifar100', hue=0.4)
     print(c)

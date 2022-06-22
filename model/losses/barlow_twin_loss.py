@@ -1,18 +1,42 @@
 import torch
 import torch.nn.functional as F
 from torch import nn
-from util_tool.utils import get_rank, dist_gather
+import torch.distributed as dist
 
 class BarlowTwinLoss(nn.Module):
-    def __init__(self, simplified=True):
+    def __init__(self, lamb: float = 5e-3, scale_loss: float = 0.025):
         super().__init__()
-        self.simplified = simplified
+        self.lamb = lamb
+        self.scale_loss = scale_loss
 
-    def forward(self, p, z):
-        if self.simplified:
-            return -F.cosine_similarity(p, z.detach(), dim=-1).mean()
+    def forward(self, z1: torch.Tensor, z2: torch.Tensor):
+        """Computes Barlow Twins' loss given batch of projected features z1 from view 1 and
+        projected features z2 from view 2.
+        Args:
+            z1 (torch.Tensor): NxD Tensor containing projected features from view 1.
+            z2 (torch.Tensor): NxD Tensor containing projected features from view 2.
+            lamb (float, optional): off-diagonal scaling factor for the cross-covariance matrix.
+                Defaults to 5e-3.
+            scale_loss (float, optional): final scaling factor of the loss. Defaults to 0.025.
+        Returns:
+            torch.Tensor: Barlow Twins' loss.
+        """
+        N, D = z1.size()
 
-        p = F.normalize(p, dim=-1)
-        z = F.normalize(z, dim=-1)
+        # to match the original code
+        bn = torch.nn.BatchNorm1d(D, affine=False).to(z1.device)
+        z1 = bn(z1)
+        z2 = bn(z2)
 
-        return -(p * z.detach()).sum(dim=1).mean()
+        corr = torch.einsum("bi, bj -> ij", z1, z2) / N
+
+        if dist.is_available() and dist.is_initialized():
+            dist.all_reduce(corr)
+            world_size = dist.get_world_size()
+            corr /= world_size
+
+        diag = torch.eye(D, device=corr.device)
+        cdif = (corr - diag).pow(2)
+        cdif[~diag.bool()] *= self.lamb
+        loss = self.scale_loss * cdif.sum()
+        return loss

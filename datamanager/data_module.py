@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader, random_split
 
 
 class DataModule(LightningDataModule):
-    # /data/tch_ds is the path setup by docker env, and bind to /data1/ssl_ds/tch_ds
-    def __init__(self, data_dir: str = "/data/tch_ds", ds_name:str = ''):
+    # /data is the default path setup by docker env, and bind to /data1 datasets
+    def __init__(self, ds_name, data_dir):
         super().__init__()
         if ds_name not in DS_DICT:
             raise ValueError(f"The given dataset '{ds_name}' have not been supported, check the supported data catelog : {DS_DICT.keys()}\n")
@@ -62,7 +62,7 @@ class DataModule(LightningDataModule):
 
     def setup(self, stage = 'train', valid_split = None):
         self.prepare_data()
-
+        
         ds = DS_DICT[self.ds_name]
         # Assign train/val datasets for use in dataloaders
         if stage == "train":
@@ -87,8 +87,8 @@ class DataModule(LightningDataModule):
             raise ValueError(f"Error stage : {stage}, it should be one of [train, test, predict]")
 
     # overwrite base class methods
-    def train_dataloader(self, batch_size=32, shuffle=True, num_workers=2):
-        return DataLoader(self.train_dset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, drop_last=True)
+    def train_dataloader(self, batch_size=32, shuffle=True, num_workers=2, pin_memory=True):
+        return DataLoader(self.train_dset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory, drop_last=True)
 
     def val_dataloader(self, batch_size=32, shuffle=True, num_workers=2):
         return DataLoader(self.valid_dset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)

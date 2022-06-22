@@ -8,7 +8,7 @@ class NearestNeighborLoss(nn.Module):
         super().__init__()
         self.temperature = temperature
 
-    def forward(self, nn, p, temperature=0.1):
+    def forward(self, nn, p):
         """Computes NNCLR's loss given batch of nearest-neighbors nn from view 1 and
         predicted features p from view 2.
         Args:

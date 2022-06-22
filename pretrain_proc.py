@@ -1,12 +1,13 @@
 from pytorch_lightning import seed_everything
 from pytorch_lightning import Trainer
+from pytorch_lightning.plugins import DDPPlugin
 
 from datamanager import get_datamanager
 from model import get_backbone, wrap_ssl_method
 
 from util_tool.utils import get_wandb_logger
 from util_tool.callback import get_model_ckpt
-#from util_tool.auto_resume import resumer
+from pytorch_lightning.callbacks import LearningRateMonitor
 
 def main(cfger):
     # 0. confirm repoducerbility
@@ -16,8 +17,9 @@ def main(cfger):
         tra_determin = True
 
     # 1. prepare dataset
-    ds = get_datamanager(cfger.dataset, cfger.aug_crop_lst)
-    ds.setup(stage='train')  # support valid_split=[0.8, 0.2]
+    data_dir = cfger.data_dir if getattr(cfger, 'data_dir', None) else '/data'
+    ds = get_datamanager(cfger.dataset, data_dir, cfger.aug_crop_lst)
+    ds.setup(stage='train')  
     tra_ld = ds.train_dataloader(batch_size=cfger.batch_size, num_workers=cfger.num_workers)
     num_cls = ds.dataset_info.num_classes
 
@@ -35,8 +37,11 @@ def main(cfger):
 
     # 4. prepare trainer config from prev def & conduct training loop
     tra_cfg = {'deterministic':tra_determin, 'logger':logger, 'callbacks':callbk_lst, 
-                'max_epochs':cfger.epochs, **cfger.compute_cfg}
-    trainer = Trainer(**tra_cfg)
+                'max_epochs':cfger.epochs,
+                'callbacks':[LearningRateMonitor(logging_interval='step')], **cfger.compute_cfg}
+    tra_cfg['strategy'] = DDPPlugin(find_unused_parameters=False)
+
+    trainer = Trainer(sync_batchnorm=True, **tra_cfg)
     trainer.fit(ssl_model, tra_ld)
 
 

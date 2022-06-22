@@ -17,13 +17,14 @@ import time
 import collections
 
 import pytorch_lightning as pl
-from torch.optim import Adam
+from torch import optim
 import torch.nn.functional as F
 from torch import nn, Tensor
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 
 from model.losses.simsiam_loss import SimSiamLoss
+#from model.solver.lr_scheduler import LARS, 
 from util_tool.utils import dist_gather, accuracy_at_k
                
                
@@ -31,6 +32,8 @@ class Sim_Siam(pl.LightningModule):
 
     def __init__(self, backbone, proj_hidden_dim, proj_output_dim, pred_hidden_dim, num_of_cls):
         super().__init__()
+        self.save_hyperparameters()
+
         self.backbone = backbone
         self.projector = nn.Sequential(collections.OrderedDict([
             ("linear1", nn.Linear(self.backbone.inplanes, proj_hidden_dim, bias=False)),  
@@ -39,9 +42,9 @@ class Sim_Siam(pl.LightningModule):
             ("linear2", nn.Linear(proj_hidden_dim, proj_hidden_dim, bias=False)), 
             ("bn2", nn.BatchNorm1d(proj_hidden_dim)),
             ("relu2",   nn.ReLU()),
-            ("linear3", nn.Linear(proj_hidden_dim, proj_output_dim, affine=False)),  
+            ("linear3", nn.Linear(proj_hidden_dim, proj_output_dim)),   # , affines=False
             ("bn3", nn.BatchNorm1d(proj_output_dim))
-        ])
+        ]))
         self.projector.linear3.bias.requires_grad = False  # hack: not use bias as it is followed by BN
         
         self.predictor = nn.Sequential(collections.OrderedDict([
@@ -49,14 +52,17 @@ class Sim_Siam(pl.LightningModule):
             ("bn1", nn.BatchNorm1d(pred_hidden_dim)),
             ("relu1",   nn.ReLU()),
             ("linear2", nn.Linear(pred_hidden_dim, proj_output_dim))
-        ])
+        ]))
         
         self.classifier = nn.Linear(self.backbone.inplanes, num_of_cls)
         self.loss_fn = SimSiamLoss()
 
-
     def configure_optimizers(self):
-        return Adam(self.parameters(), lr=1e-4)
+        # linear scaling rule : 0.05*Batchsize / 256 = 0.05 (default)
+        optimizer = optim.SGD(self.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
+
+        return [optimizer], [scheduler]
 
     def forward(self, X, targets):
         """Performs the forward pass of the backbone and the projector.
@@ -97,7 +103,7 @@ class Sim_Siam(pl.LightningModule):
         p1, p2 = outs["p"]
         
         # ------- contrastive loss -------
-        neg_cos_sim = simsiam_loss_func(p1, z2) / 2 + simsiam_loss_func(p2, z1) / 2
+        neg_cos_sim = self.loss_fn(p1, z2) / 2 + self.loss_fn(p2, z1) / 2
 
         # calculate std of features
         z1_std = F.normalize(z1, dim=-1).std(dim=0).mean()
@@ -122,3 +128,13 @@ class Sim_Siam(pl.LightningModule):
         self.log_dict(metrics, on_step=True, on_epoch=False, sync_dist=True, prog_bar=True)
 
         return neg_cos_sim + outs["loss"]
+
+    ## Progressbar adjustment of output console
+    def on_epoch_start(self):
+        print('\n')
+
+    def get_progress_bar_dict(self):
+        tqdm_dict = super().get_progress_bar_dict()
+        tqdm_dict.pop("v_num", None)
+        tqdm_dict.pop("loss", None)
+        return tqdm_dict

@@ -31,9 +31,6 @@ class Barlow_Twin(pl.LightningModule):
 
     def __init__(self, backbone, proj_hidden_dim, proj_output_dim, lamb, scale_loss, num_of_cls):
         super().__init__()
-        self.lamb = lamb
-        self.scale_loss = scale_loss
-
         self.backbone = backbone
         self.projector = nn.Sequential(collections.OrderedDict([
             ("linear1", nn.Linear(self.backbone.inplanes, proj_hidden_dim, bias=False)),  
@@ -42,13 +39,12 @@ class Barlow_Twin(pl.LightningModule):
             ("linear2", nn.Linear(proj_hidden_dim, proj_hidden_dim, bias=False)), 
             ("bn2", nn.BatchNorm1d(proj_hidden_dim)),
             ("relu2",   nn.ReLU()),
-            ("linear3", nn.Linear(proj_hidden_dim, proj_output_dim, affine=False)),  
+            ("linear3", nn.Linear(proj_hidden_dim, proj_output_dim)),  
             ("bn3", nn.BatchNorm1d(proj_output_dim))
-        ])
+        ]))
         
         self.classifier = nn.Linear(self.backbone.inplanes, num_of_cls)
-        self.loss_fn = Loss()
-
+        self.loss_fn = BarlowTwinLoss(lamb, scale_loss)
 
     def configure_optimizers(self):
         return Adam(self.parameters(), lr=1e-4)
@@ -64,7 +60,6 @@ class Barlow_Twin(pl.LightningModule):
         """
         feats = self.backbone(X)
         z = self.projector(feats)
-        p = self.predictor(z)
         
         # handle the linear protocol during the training
         logits = self.classifier(feats.detach())
@@ -72,7 +67,7 @@ class Barlow_Twin(pl.LightningModule):
         top_k_max = min(5, logits.size(1))
         acc1, acc5 = accuracy_at_k(logits, targets, top_k=(1, top_k_max))
         
-        return {"z":z, "p":p, "loss": loss, "acc1": acc1, "acc5": acc5}
+        return {"z":z, "loss": loss, "acc1": acc1, "acc5": acc5}
 
         
     def training_step(self, batch, batch_idx):
@@ -89,21 +84,10 @@ class Barlow_Twin(pl.LightningModule):
         # merge all outputs according to the same key
         outs = {k: [out[k] for out in tmp_outs] for k in tmp_outs[0].keys()}
         z1, z2 = outs["z"]
-        p1, p2 = outs["p"]
         
-        # ------- contrastive loss -------
-        neg_cos_sim = simsiam_loss_func(p1, z2) / 2 + simsiam_loss_func(p2, z1) / 2
-
-        # calculate std of features
-        z1_std = F.normalize(z1, dim=-1).std(dim=0).mean()
-        z2_std = F.normalize(z2, dim=-1).std(dim=0).mean()
-        z_std = (z1_std + z2_std) / 2
-
-        metrics = {
-            "train_neg_cos_sim": neg_cos_sim,
-            "train_z_std": z_std,
-        }
-        self.log_dict(metrics, on_epoch=True, sync_dist=True)
+        # ------- barlow twins loss -------
+        barlow_loss = self.loss_fn(z1, z2)
+        self.log("train_barlow_loss", barlow_loss, on_epoch=True, sync_dist=True)
 
         n_viw = len(outs["loss"])
         clf_loss = outs["loss"] = sum(outs["loss"]) / n_viw
@@ -116,4 +100,4 @@ class Barlow_Twin(pl.LightningModule):
         }
         self.log_dict(metrics, on_step=True, on_epoch=False, sync_dist=True, prog_bar=True)
 
-        return neg_cos_sim + outs["loss"]
+        return barlow_loss + outs["loss"]

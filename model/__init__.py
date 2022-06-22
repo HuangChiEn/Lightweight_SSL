@@ -7,6 +7,9 @@ from model.nnclr import NN_CLR
 from model.simclr import Sim_CLR
 from model.simsiam import Sim_Siam
 from model.barlow_twin import Barlow_Twin
+#from model.byol import BYOL
+
+from model.linear_classifier import Linear_classifier
 
 SSL_METHODS = {
     'rnnclvr' : RNN_CLVR,
@@ -14,7 +17,7 @@ SSL_METHODS = {
     'simclr' : Sim_CLR,
     'simsiam' : Sim_Siam,
     'barlowtwin' : Barlow_Twin,
-    #byol : BYOL
+    #'byol' : BYOL
 }
 
 def get_backbone(backbone_type): 
@@ -37,3 +40,16 @@ def wrap_ssl_method(backbone, num_cls, ssl_method, ssl_args):
     
     ssl_args.update( {'num_of_cls':num_cls} )
     return SSL_METHODS[ssl_method](backbone=backbone, **ssl_args)
+
+
+def load_linear_clf(backbone, num_cls, ssl_method, ssl_args, ckpt_path='/workspace/meta_info/results/simsiam_pretrain/pretrain_file/pretrain_ep100.ckpt'):
+    
+    def get_ssl_backbone(ckpt_path):
+        other_args = {'backbone':backbone, 'num_of_cls':num_cls, **ssl_args}
+        ssl_model = SSL_METHODS[ssl_method].load_from_checkpoint(ckpt_path, **other_args)
+        return ssl_model.backbone, ssl_model.classifier.in_features
+    
+    backbone, in_features = get_ssl_backbone(ckpt_path)
+    return Linear_classifier(backbone, in_features)
+
+

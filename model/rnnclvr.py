@@ -26,7 +26,8 @@ import pytorch_lightning as pl
 
 
 class RNN_CLVR(pl.LightningModule):
-    
+    embed_queue: torch.Tensor
+
     def __init__(self, backbone, aggregation="cat", queue_size=65536, shift_range=2,
                         proj_hidden_dim=2048, proj_output_dim=256, pred_hidden_dim=4096, num_of_cls=100):
         super().__init__()
@@ -172,7 +173,7 @@ class RNN_CLVR(pl.LightningModule):
         outs["acc1"] = sum(outs["acc1"]) / n_viw
         outs["acc5"] = sum(outs["acc5"]) / n_viw
         metrics = {  # record the linear protocol results
-            "lin_loss": outs["loss"],
+            #"lin_loss": outs["loss"],
             "lin_acc1": outs["acc1"],
             "lin_acc5": outs["acc5"]
         }
