@@ -5,3 +5,7 @@ def get_model_ckpt(callbk_lst, dirpath, filename, every_n_epochs, save_top_k, mo
                                             save_top_k=save_top_k, monitor=monitor)
     callbk_lst.append(checkpoint_callback)
 
+def get_lr_monitor(callbk_lst, logging_interval='step'):
+    lr_monitor_callback = LearningRateMonitor(logging_interval=logging_interval)
+    callbk_lst.append(lr_monitor_callback)
+    

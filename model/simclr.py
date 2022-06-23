@@ -17,20 +17,23 @@ import time
 import collections
 
 import pytorch_lightning as pl
-from torch.optim import Adam
+#from torch.optim import lr_scheduler   # Adam
+from model.solver.lr_scheduler import LARS, LinearWarmupCosineAnnealingLR
 import torch.nn.functional as F
 from torch import nn, Tensor
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 
 from model.losses.nce_loss import NoiseContrastiveLoss
-from util_tool.utils import dist_gather, accuracy_at_k
+from util_tool.utils import accuracy_at_k
                
                
 class Sim_CLR(pl.LightningModule):
 
     def __init__(self, backbone, proj_hidden_dim, proj_output_dim, temperature, num_of_cls):
         super().__init__()
+        self.save_hyperparameters()
+        
         self.backbone = backbone
         self.projector = nn.Sequential(collections.OrderedDict([
             ("linear1", nn.Linear(self.backbone.inplanes, proj_hidden_dim)),  # avgpool2d output 512 dim vec
@@ -41,7 +44,9 @@ class Sim_CLR(pl.LightningModule):
         self.loss_fn = NoiseContrastiveLoss(temperature)
 
     def configure_optimizers(self):
-        return Adam(self.parameters(), lr=1e-4)
+        optimizer = LARS(self.parameters(), lr=4.92, weight_decay=1e-6, trust_coefficient=0.001)
+        scheduler = LinearWarmupCosineAnnealingLR(optimizer, warmup_epochs=10, max_epochs=100)
+        return [optimizer], [scheduler]
 
     def forward(self, X, targets):
         """Performs the forward pass of the backbone and the projector.

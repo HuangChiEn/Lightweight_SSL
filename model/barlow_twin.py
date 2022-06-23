@@ -31,6 +31,8 @@ class Barlow_Twin(pl.LightningModule):
 
     def __init__(self, backbone, proj_hidden_dim, proj_output_dim, lamb, scale_loss, num_of_cls):
         super().__init__()
+        self.save_hyperparameters()
+        
         self.backbone = backbone
         self.projector = nn.Sequential(collections.OrderedDict([
             ("linear1", nn.Linear(self.backbone.inplanes, proj_hidden_dim, bias=False)),  

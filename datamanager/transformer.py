@@ -105,7 +105,7 @@ class FullTransformPipeline:
 # public interface for build the data transformation
 class Transform_builder(object):
 
-    def __init__(self, dataset: str, kwargs={}) -> Any:
+    def __init__(self, dataset: str, train=True, kwargs={}) -> Any:
         """Prepares transforms for a specific dataset. Optionally uses multi crop.
         Args:
             dataset (str): name of the dataset.
@@ -117,17 +117,25 @@ class Transform_builder(object):
         for args in kwargs:
             # limited with kw-args only
             if dataset in ['cifar10', 'cifar100']:
-                self.trfs_lst.append( CifarTransform(cifar=dataset, **args) ) 
+                trfs = CifarTransform(cifar=dataset, **args) 
+                
             elif dataset == "stl10":
-                self.trfs_lst.append( STLTransform(**args) )  
+                trfs = STLTransform(**args) 
+
             elif dataset == "slim":
-                self.trfs_lst.append( SlimTransform(**args) )
+                trfs = SlimTransform(**args) 
+
             elif dataset in ['imagenet']: 
-                self.trfs_lst.append(  ImagenetTransform(**args) )  
+                trfs = ImagenetTransform(**args) if train else LinearTransform(**args)
+
             elif dataset == "custom":
-                self.trfs_lst.append(  StandardTransform(**args) )  
+                trfs = StandardTransform(**args)
+
             else:
                 raise ValueError(f"{dataset} is not currently supported.")
+
+            self.trfs_lst.append(trfs)
+
            
     def debug_transformation(self):
         print("Transforms:")

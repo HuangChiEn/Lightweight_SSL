@@ -26,6 +26,7 @@ class BYOL(BaseMomentumMethod):
         """
 
         super().__init__(**kwargs)
+        self.save_hyperparameters()
 
         # projector
         self.projector = nn.Sequential(

@@ -16,10 +16,16 @@ class DataModule(LightningDataModule):
     def __init__(self, ds_name, data_dir):
         super().__init__()
         if ds_name not in DS_DICT:
-            raise ValueError(f"The given dataset '{ds_name}' have not been supported, check the supported data catelog : {DS_DICT.keys()}\n")
+            raise KeyError(f"The given dataset '{ds_name}' have not been supported, check the supported data catelog : {DS_DICT.keys()}\n")
 
         self.ds_name = ds_name
         self.data_dir = data_dir
+        if isinstance(data_dir, dict):
+            self.split_dir = True 
+            for k in data_dir.keys():
+                if not k in ['train', 'test']:
+                    raise KeyError(f"The {k} is invalid, valid phase : [train, test]")
+            
         self._train_trfs = transforms.ToTensor()
         self._test_trfs = transforms.ToTensor()
 
@@ -62,12 +68,13 @@ class DataModule(LightningDataModule):
 
     def setup(self, stage = 'train', valid_split = None):
         self.prepare_data()
-        
+
         ds = DS_DICT[self.ds_name]
+        data_dir = self.data_dir[stage] if self.split_dir else self.data_dir
         # Assign train/val datasets for use in dataloaders
         if stage == "train":
-            full_tra_ds = ds['data'](self.data_dir, train=True, transform=self._train_trfs) if ds['info'].split \
-                            else ds['data'](self.data_dir, transform=self._train_trfs)
+            full_tra_ds = ds['data'](data_dir, train=True, transform=self._train_trfs) if ds['info'].split \
+                            else ds['data'](data_dir, transform=self._train_trfs)
             if valid_split:
                 assert valid_split[0] + valid_split[1] == 1.0
                 tra_ratio = valid_split[0]
@@ -80,11 +87,12 @@ class DataModule(LightningDataModule):
 
         # Assign test dataset for use in dataloader(s)
         elif stage == "test":
-            self.test_dset = ds['data'](self.data_dir, train=False, transform=self._test_trfs) if ds['info'].split \
-                                else ds['data'](self.data_dir, transform=self._test_trfs)
+            self.test_dset = ds['data'](data_dir, train=False, transform=self._test_trfs) if ds['info'].split \
+                                else ds['data'](data_dir, transform=self._test_trfs)
 
         else:
-            raise ValueError(f"Error stage : {stage}, it should be one of [train, test, predict]")
+            raise ValueError(f"Error stage : {stage}, it should be either 'train' or 'test'.")
+
 
     # overwrite base class methods
     def train_dataloader(self, batch_size=32, shuffle=True, num_workers=2, pin_memory=True):
