@@ -1,16 +1,9 @@
 #!/usr/bin/env python
-
-# The MIT License (MIT)
-# Copyright (c) 2022 NoName
-# Paper: "Rethinking of asking help from My Friends: Relation based Nearest-Neighbor Contrastive Learning of Visual Representations", NoName
-# GitHub: https://github.com/HuangChiEn/Lightweight_SSL
-#
 # Implementation of the paper:
 # "A Simple Framework for Contrastive Learning of Visual Representations", Chen et al. (2020)
 # Paper: https://arxiv.org/abs/2002.05709
 # Code (adapted from):
 # https://github.com/vturrisi/solo-learn/
-# https://theaisummer.com/simclr/
 
 import math
 import time
@@ -24,13 +17,13 @@ import torchvision.datasets as dset
 import torchvision.transforms as transforms
 
 from model.losses.simsiam_loss import SimSiamLoss
-#from model.solver.lr_scheduler import LARS, 
 from util_tool.utils import dist_gather, accuracy_at_k
                
                
 class Sim_Siam(pl.LightningModule):
 
-    def __init__(self, backbone, proj_hidden_dim, proj_output_dim, pred_hidden_dim, num_of_cls):
+    def __init__(self, backbone, proj_hidden_dim, proj_output_dim, pred_hidden_dim, 
+                    lr, weight_decay, momentum, tot_epochs, num_of_cls):
         super().__init__()
         self.save_hyperparameters()
 
@@ -57,10 +50,15 @@ class Sim_Siam(pl.LightningModule):
         self.classifier = nn.Linear(self.backbone.inplanes, num_of_cls)
         self.loss_fn = SimSiamLoss()
 
+        self.lr = lr
+        self.weight_decay = weight_decay
+        self.momentum = momentum
+        self.tmax = tot_epochs
+
     def configure_optimizers(self):
         # linear scaling rule : 0.05*Batchsize / 256 = 0.05 (default)
-        optimizer = optim.SGD(self.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4)
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
+        optimizer = optim.SGD(self.parameters(), lr=self.lr, momentum=self.momentum, weight_decay=self.weight_decay)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.tmax)
 
         return [optimizer], [scheduler]
 
@@ -122,8 +120,8 @@ class Sim_Siam(pl.LightningModule):
         outs["acc5"] = sum(outs["acc5"]) / n_viw
         metrics = {  # record the linear protocol results
             "lin_loss": outs["loss"],
-            "lin_acc1": outs["acc1"],
-            "lin_acc5": outs["acc5"]
+            "lin_acc1": outs["acc1"].item(),
+            "lin_acc5": outs["acc5"].item()
         }
         self.log_dict(metrics, on_step=True, on_epoch=False, sync_dist=True, prog_bar=True)
 

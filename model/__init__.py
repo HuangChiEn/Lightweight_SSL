@@ -1,4 +1,6 @@
-# The backbone will directly call re-use the torch.hub
+# The backbone will directly call re-use the torch.hub,
+#   we have plane to replce it into timm repo:https://github.com/rwightman/pytorch-image-models
+#   or the vit repo:pip install vit-pytorch
 from torch import nn
 import torchvision.models as model_hub
 
@@ -34,11 +36,11 @@ def get_backbone(backbone_type):
     return remove_fc_head(raw_backbone)
     
 
-def wrap_ssl_method(backbone, num_cls, ssl_method, ssl_args):
+def wrap_ssl_method(backbone, ssl_method, ssl_args, num_cls, epochs):
     if not ssl_method in SSL_METHODS:
         raise ValueError(f"The ssl method {ssl_method} are not supported yet, we only support {SSL_METHODS.keys()} currently..")
     
-    ssl_args.update( {'num_of_cls':num_cls} )
+    ssl_args.update( {'num_of_cls':num_cls, 'tot_epochs':epochs} )
     return SSL_METHODS[ssl_method](backbone=backbone, **ssl_args)
 
 

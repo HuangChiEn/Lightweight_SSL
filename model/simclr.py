@@ -1,10 +1,4 @@
 #!/usr/bin/env python
-
-# The MIT License (MIT)
-# Copyright (c) 2022 NoName
-# Paper: "Rethinking of asking help from My Friends: Relation based Nearest-Neighbor Contrastive Learning of Visual Representations", NoName
-# GitHub: https://github.com/HuangChiEn/Lightweight_SSL
-#
 # Implementation of the paper:
 # "A Simple Framework for Contrastive Learning of Visual Representations", Chen et al. (2020)
 # Paper: https://arxiv.org/abs/2002.05709
@@ -17,7 +11,6 @@ import time
 import collections
 
 import pytorch_lightning as pl
-#from torch.optim import lr_scheduler   # Adam
 from model.solver.lr_scheduler import LARS, LinearWarmupCosineAnnealingLR
 import torch.nn.functional as F
 from torch import nn, Tensor
@@ -30,10 +23,11 @@ from util_tool.utils import accuracy_at_k
                
 class Sim_CLR(pl.LightningModule):
 
-    def __init__(self, backbone, proj_hidden_dim, proj_output_dim, temperature, num_of_cls):
+    def __init__(self, backbone, proj_hidden_dim, proj_output_dim, temperature, 
+                        lr, weight_decay, warmup_epochs, tot_epochs, num_of_cls):
         super().__init__()
         self.save_hyperparameters()
-        
+
         self.backbone = backbone
         self.projector = nn.Sequential(collections.OrderedDict([
             ("linear1", nn.Linear(self.backbone.inplanes, proj_hidden_dim)),  # avgpool2d output 512 dim vec
@@ -43,9 +37,14 @@ class Sim_CLR(pl.LightningModule):
         self.classifier = nn.Linear(self.backbone.inplanes, num_of_cls)
         self.loss_fn = NoiseContrastiveLoss(temperature)
 
+        self.lr = lr
+        self.weight_decay = weight_decay
+        self.warmup_epochs = warmup_epochs
+        self.max_epochs = tot_epochs
+
     def configure_optimizers(self):
-        optimizer = LARS(self.parameters(), lr=4.92, weight_decay=1e-6, trust_coefficient=0.001)
-        scheduler = LinearWarmupCosineAnnealingLR(optimizer, warmup_epochs=10, max_epochs=100)
+        optimizer = LARS(self.parameters(), lr=self.lr, weight_decay=self.weight_decay, trust_coefficient=0.001)
+        scheduler = LinearWarmupCosineAnnealingLR(optimizer, warmup_epochs=self.warmup_epochs, max_epochs=self.max_epochs)
         return [optimizer], [scheduler]
 
     def forward(self, X, targets):
@@ -98,10 +97,20 @@ class Sim_CLR(pl.LightningModule):
         outs["acc5"] = sum(outs["acc5"]) / n_viw
         metrics = {  # record the linear protocol results
             "lin_loss": outs["loss"],
-            "lin_acc1": outs["acc1"],
-            "lin_acc5": outs["acc5"],
+            "lin_acc1": outs["acc1"].item(),
+            "lin_acc5": outs["acc5"].item(),
             "nce_loss" : nce_loss
         }
         self.log_dict(metrics, on_step=True, on_epoch=False, sync_dist=True, prog_bar=True)
 
         return nce_loss + outs["loss"]
+
+    ## Progressbar adjustment of output console
+    def on_epoch_start(self):
+        print('\n')
+
+    def get_progress_bar_dict(self):
+        tqdm_dict = super().get_progress_bar_dict()
+        tqdm_dict.pop("v_num", None)
+        tqdm_dict.pop("loss", None)
+        return tqdm_dict

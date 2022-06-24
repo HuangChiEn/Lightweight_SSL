@@ -1,23 +1,11 @@
 #!/usr/bin/env python
 
-# The MIT License (MIT)
-# Copyright (c) 2022 NoName
-# Paper: "Rethinking of asking help from My Friends: Relation based Nearest-Neighbor Contrastive Learning of Visual Representations", NoName
-# GitHub: https://github.com/HuangChiEn/Lightweight_SSL
-#
-# Implementation of the paper:
-# "A Simple Framework for Contrastive Learning of Visual Representations", Chen et al. (2020)
-# Paper: https://arxiv.org/abs/2002.05709
-# Code (adapted from):
-# https://github.com/vturrisi/solo-learn/
-# https://theaisummer.com/simclr/
-
 import math
 import time
 import collections
 
 import pytorch_lightning as pl
-from torch.optim import Adam
+from torch.optim import SGD
 import torch.nn.functional as F
 from torch import nn, Tensor
 import torchvision.datasets as dset
@@ -29,7 +17,8 @@ from util_tool.utils import dist_gather, accuracy_at_k
                
 class Barlow_Twin(pl.LightningModule):
 
-    def __init__(self, backbone, proj_hidden_dim, proj_output_dim, lamb, scale_loss, num_of_cls):
+    def __init__(self, backbone, proj_hidden_dim, proj_output_dim, lamb, scale_loss, 
+                    lr, weight_decay, momentum, tot_epochs, num_of_cls):
         super().__init__()
         self.save_hyperparameters()
         
@@ -48,8 +37,13 @@ class Barlow_Twin(pl.LightningModule):
         self.classifier = nn.Linear(self.backbone.inplanes, num_of_cls)
         self.loss_fn = BarlowTwinLoss(lamb, scale_loss)
 
+        self.lr = lr
+        self.weight_decay = weight_decay
+
     def configure_optimizers(self):
-        return Adam(self.parameters(), lr=1e-4)
+        optimizer = LARS(self.parameters(), lr=self.lr, weight_decay=self.weight_decay, trust_coefficient=0.001)
+        scheduler = LinearWarmupCosineAnnealingLR(optimizer, warmup_epochs=self.warmup_epochs, max_epochs=self.max_epochs)
+        return [optimizer], [scheduler]
 
     def forward(self, X, targets):
         """Performs the forward pass of the backbone and the projector.

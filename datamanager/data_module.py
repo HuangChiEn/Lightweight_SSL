@@ -25,7 +25,9 @@ class DataModule(LightningDataModule):
             for k in data_dir.keys():
                 if not k in ['train', 'test']:
                     raise KeyError(f"The {k} is invalid, valid phase : [train, test]")
-            
+        else:
+            self.split_dir = False
+
         self._train_trfs = transforms.ToTensor()
         self._test_trfs = transforms.ToTensor()
 

@@ -10,8 +10,8 @@ make_req:
 
 # The running cmd is described in sh script
 run: cln_cah
-	export CONFIGER_PATH="./run_script/pretrain/simsiam.ini"; \
-	python3 pretrain_proc.py
+	export CONFIGER_PATH="./run_script/pretrain/xxx.ini"; \
+	python3 linear_protocol.py
 
 #.PHONY: test  # havn't build the test yet..
 #test:
