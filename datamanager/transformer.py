@@ -105,37 +105,42 @@ class FullTransformPipeline:
 # public interface for build the data transformation
 class Transform_builder(object):
 
-    def __init__(self, dataset: str, train=True, kwargs={}) -> Any:
+    def __init__(self, dataset: str, mode='train', kwargs={}) -> Any:
         """Prepares transforms for a specific dataset. Optionally uses multi crop.
         Args:
             dataset (str): name of the dataset.
         Returns:
             Any: a transformation for a specific dataset.
         """
+        assert mode in ['train', 'finetune', 'eval'], "Please assert the transformer mode!!"
+
         self.trfs_lst = []
         kwargs = [kwargs] if isinstance(kwargs, dict) else kwargs
-        for args in kwargs:
-            # limited with kw-args only
-            if dataset in ['cifar10', 'cifar100']:
-                trfs = CifarTransform(cifar=dataset, **args) 
-                
-            elif dataset == "stl10":
-                trfs = STLTransform(**args) 
+        if mode == 'train':
+            for args in kwargs:
+                # limited with kw-args only
+                if dataset in ['cifar10', 'cifar100']:
+                    trfs = CifarTransform(cifar=dataset, **args) 
+                    
+                elif dataset == "stl10":
+                    trfs = STLTransform(**args) 
 
-            elif dataset == "slim":
-                trfs = SlimTransform(**args) 
+                elif dataset == "slim":
+                    trfs = SlimTransform(**args) 
 
-            elif dataset in ['imagenet']: 
-                trfs = ImagenetTransform(**args) if train else LinearTransform(**args)
+                elif dataset in ['imagenet']: 
+                    trfs = ImagenetTransform(**args)
 
-            elif dataset == "custom":
-                trfs = StandardTransform(**args)
+                elif dataset == "custom":
+                    trfs = StandardTransform(**args)
 
-            else:
-                raise ValueError(f"{dataset} is not currently supported.")
+                else:
+                    raise ValueError(f"{dataset} is not currently supported.")
 
+                self.trfs_lst.append(trfs)
+        else:
+            trfs = FinetuneTransform(**kwargs[0]) if mode == 'finetune' else EvalTransform(**kwargs[0])
             self.trfs_lst.append(trfs)
-
            
     def debug_transformation(self):
         print("Transforms:")
@@ -171,7 +176,6 @@ class BaseTransform:
 
     def __repr__(self) -> str:
         return str(self.transform)
-
 
 
 @attr.s(auto_attribs=True, kw_only=True)
@@ -305,22 +309,37 @@ class ImagenetTransform(StandardTransform):
 
 
 @attr.s(auto_attribs=True, kw_only=True)
-class LinearTransform(BaseTransform):
+class FinetuneTransform(BaseTransform):
     horizontal_flip_prob: float = 0.5
-    min_scale: float = 0.08
-    max_scale: float = 1.0
     crop_size: int = 224
     mean: Sequence[float] = (0.485, 0.456, 0.406)
     std: Sequence[float] = (0.228, 0.224, 0.225)
 
     def __attrs_post_init__(self):
-        trfs_lst = [
+        trfs_lst = [   
             transforms.RandomResizedCrop(
                 self.crop_size,
-                scale=(self.min_scale, self.max_scale),
-                interpolation=transforms.InterpolationMode.BICUBIC,
+                interpolation=transforms.InterpolationMode.BICUBIC
             ),
             transforms.RandomHorizontalFlip(p=self.horizontal_flip_prob),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=self.mean, std=self.std),
+        ] # BaseTransform will wrap it into the transform.Composer
+        super().__init__(trfs_lst)
+
+
+@attr.s(auto_attribs=True, kw_only=True)
+class EvalTransform(BaseTransform):
+    # refer as official simsiam : https://github.com/facebookresearch/simsiam/blob/a7bc1772896d0dad0806c51f0bb6f3b16d290468/main_lincls.py#L282
+    resize_size: int = 256
+    crop_size: int = 224
+    mean: Sequence[float] = (0.485, 0.456, 0.406)
+    std: Sequence[float] = (0.228, 0.224, 0.225)
+
+    def __attrs_post_init__(self):
+        trfs_lst = [   
+            transforms.Resize(self.resize_size),
+            transforms.CenterCrop(self.crop_size),
             transforms.ToTensor(),
             transforms.Normalize(mean=self.mean, std=self.std),
         ] # BaseTransform will wrap it into the transform.Composer

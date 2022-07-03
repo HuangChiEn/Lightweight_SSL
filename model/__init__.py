@@ -4,7 +4,6 @@
 from torch import nn
 import torchvision.models as model_hub
 
-from model.rnnclvr import RNN_CLVR
 from model.nnclr import NN_CLR
 from model.simclr import Sim_CLR
 from model.simsiam import Sim_Siam
@@ -14,7 +13,6 @@ from model.barlow_twin import Barlow_Twin
 from model.linear_classifier import Linear_classifier
 
 SSL_METHODS = {
-    'rnnclvr' : RNN_CLVR,
     'nnclr' : NN_CLR,
     'simclr' : Sim_CLR,
     'simsiam' : Sim_Siam,
@@ -44,7 +42,7 @@ def wrap_ssl_method(backbone, ssl_method, ssl_args, num_cls, epochs):
     return SSL_METHODS[ssl_method](backbone=backbone, **ssl_args)
 
 
-def load_linear_clf(backbone, num_cls, ssl_method, ssl_args, ckpt_path='/workspace/meta_info/results/simsiam_pretrain/pretrain_file/pretrain_ep100.ckpt'):
+def load_linear_clf(backbone, num_cls, ssl_method, ssl_args, ckpt_path=None):
     
     def get_ssl_backbone(ckpt_path):
         other_args = {'backbone':backbone, 'num_of_cls':num_cls, **ssl_args}

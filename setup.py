@@ -18,7 +18,7 @@ setup(
     #long_description_content_type='text/markdown',
     license='MIT',
     url='https://github.com/HuangChiEn/',
-    packages=find_packages(exclude=["downstream", "run_script"]),
+    packages=find_packages(exclude=["asset", "legacy", "meta_info", "run_script"]),
     keywords=["lightweight framework", "self-supervised learning", "pytorch_lighting"],
     classifiers=[
         'Programming Language :: Python :: 3.7',

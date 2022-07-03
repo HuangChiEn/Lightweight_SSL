@@ -100,11 +100,11 @@ class DataModule(LightningDataModule):
     def train_dataloader(self, batch_size=32, shuffle=True, num_workers=2, pin_memory=True):
         return DataLoader(self.train_dset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory, drop_last=True)
 
-    def val_dataloader(self, batch_size=32, shuffle=True, num_workers=2):
-        return DataLoader(self.valid_dset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+    def val_dataloader(self, batch_size=32, shuffle=True, num_workers=2, pin_memory=True):
+        return DataLoader(self.valid_dset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory)
 
-    def test_dataloader(self, batch_size=32, shuffle=True, num_workers=2):
-        return DataLoader(self.test_dset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+    def test_dataloader(self, batch_size=32, shuffle=True, num_workers=2, pin_memory=True):
+        return DataLoader(self.test_dset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory)
 
 
 if __name__ == "__main__":

@@ -3,7 +3,6 @@ setup.py
 datamanager/__init__.py
 datamanager/data_module.py
 datamanager/dataset.py
-datamanager/test_get_datamanager.py
 datamanager/transformer.py
 lightweight_ssl.egg-info/PKG-INFO
 lightweight_ssl.egg-info/SOURCES.txt
@@ -11,7 +10,8 @@ lightweight_ssl.egg-info/dependency_links.txt
 lightweight_ssl.egg-info/top_level.txt
 model/__init__.py
 model/barlow_twin.py
+model/byol.py
+model/linear_classifier.py
 model/nnclr.py
-model/rnnclvr.py
 model/simclr.py
 model/simsiam.py
