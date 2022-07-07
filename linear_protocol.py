@@ -87,7 +87,7 @@ def linear_eval(cfger, only_eval):
 
     # load the previous ckpt or get the best ckpt according to the 'fit' results..
     ckpt_path = cfger.ckpt_args['ckpt_path'] if only_eval else callbk_lst[0].best_model_path
-    test_args = {'model':clf, 'dataloaders':tst_ld, 'ckpt_path':ckpt_path}
+    test_arg = {'model':clf, 'dataloaders':tst_ld, 'ckpt_path':ckpt_path}
     test_cfg = {'deterministic':bool(cfger.seed != -1), 'devices':1, 'accelerator':'gpu'}
 
     trainer = Trainer(**test_cfg)  

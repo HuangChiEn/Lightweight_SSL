@@ -310,8 +310,9 @@ class ImagenetTransform(StandardTransform):
 
 @attr.s(auto_attribs=True, kw_only=True)
 class FinetuneTransform(BaseTransform):
-    horizontal_flip_prob: float = 0.5
     crop_size: int = 224
+    min_scale: float = 0.08
+    max_scale: float = 1.0
     mean: Sequence[float] = (0.485, 0.456, 0.406)
     std: Sequence[float] = (0.228, 0.224, 0.225)
 
@@ -319,9 +320,10 @@ class FinetuneTransform(BaseTransform):
         trfs_lst = [   
             transforms.RandomResizedCrop(
                 self.crop_size,
-                interpolation=transforms.InterpolationMode.BICUBIC
+                scale=(self.min_scale, self.max_scale),
+                interpolation=transforms.InterpolationMode.BICUBIC,
             ),
-            transforms.RandomHorizontalFlip(p=self.horizontal_flip_prob),
+            transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean=self.mean, std=self.std),
         ] # BaseTransform will wrap it into the transform.Composer

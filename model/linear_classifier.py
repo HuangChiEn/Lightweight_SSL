@@ -1,6 +1,6 @@
 import pytorch_lightning as pl
 from torch.optim import Adam, SGD, lr_scheduler
-from model.solver.lr_scheduler import LARS
+from model.solver.lr_scheduler import LAMB, LARS
 from torch import nn
 from torch import optim
 import torch.nn.functional as F
@@ -17,11 +17,13 @@ class Linear_classifier(pl.LightningModule):
         self.classifier = nn.Linear(in_feature, num_classes)
 
     def configure_optimizers(self):
+        # 4096 / 256 * 0.1 = 1.6
+        optimizer = LAMB(self.classifier.parameters(), lr=1.6, weight_decay=0)
         #optimizer = LARS(self.classifier.parameters(), lr=1.6, momentum=0.9, weight_decay=0)
-        #scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=90)
-        #return [optimizer], [scheduler]
-        optimizer = Adam(self.classifier.parameters(), lr=2e-3)
         scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=90)
+        
+        #optimizer = Adam(self.classifier.parameters(), lr=2e-3)
+        #scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=90)
         return [optimizer], [scheduler]
         
 
@@ -52,9 +54,9 @@ class Linear_classifier(pl.LightningModule):
         logits = self(X[0], targets)  # plz setup n_arg_crop = [1] to perform only one view
 
         top_k_max = min(5, logits.size(1))
-        test_acc, _ = accuracy_at_k(logits, targets, top_k=(1, top_k_max))
+        test_top1_acc, test_top5_acc = accuracy_at_k(logits, targets, top_k=(1, top_k_max))
 
-        self.log_dict({'test_acc': test_acc})
+        self.log_dict({'test_top1_acc': test_top1_acc, 'test_top5_acc':test_top5_acc})
 
 
     ## Progressbar adjustment of output console
