@@ -65,7 +65,7 @@ warmup_epochs = 10@int
 |             | pretrain top-1 lin_acc | eval top-1 lin_acc | eval top-5 lin_acc | pretra_bkbone ckpt | lin_clf ckpt |
 |:-----------:|:----------------------:|:------------------:|:------------------:|:------------------:|:------------:|
 | **Simsiam** |            26.07%           |          76.99%         |          93.10%         |          [🔗](https://drive.google.com/file/d/1XRPgMK-zvYYTNSrY7i4lRD8CEZSUMcCw/view?usp=sharing)         |       [🔗](https://drive.google.com/file/d/14Va9Jd3Pq0nznldPnKBkfbTkaifsZDch/view?usp=sharing)      |
-|    SimCLR   |            38.70%           |          64.99%         |          85.94%         |          [🔗](tmp)         |       [🔗](tmp)      |
+|  **SimCLR** |            38.70%           |          64.99%         |          85.94%         |          [🔗](https://drive.google.com/file/d/1OV7splqRlHoMuJCC8z-p_j_JyBDxsB6e/view?usp=sharing)         |       [🔗](https://drive.google.com/file/d/1XLdvQRU_TjtVIIalZlvedrdAG2tWhL7p/view?usp=sharing)      |
 |  Barlowtwin |            ❌           |          ❌         |          ❌         |          ❌         |       ❌      |
 |    NNCLR    |            ❌           |          ❌         |          ❌         |          ❌         |       ❌      |
 |     BYOL    |            ❌           |          ❌         |          ❌         |          ❌         |       ❌      |
