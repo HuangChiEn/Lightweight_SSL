@@ -99,8 +99,9 @@ if __name__== "__main__":
     from easy_configer.Configer import Configer
 
     cfg_path = os.environ['CONFIGER_PATH']
+    perform_phase = cfg_path.split(os.sep)[-2]
     
-    cfger = Configer("The configuration for pretrain phase of SSL.", cmd_args=True)
+    cfger = Configer(f"The configuration for {perform_phase} phase of SSL.", cmd_args=True)
     cfger.cfg_from_ini(cfg_path)
 
     # 0. confirm repoducerbility
@@ -108,7 +109,7 @@ if __name__== "__main__":
         seed_everything(cfger.seed, workers=True)
         
     # trace cfg_path to dispatch the corresponding assignment..
-    if 'pretrain' == cfg_path.split(os.sep)[-2]:
+    if 'pretrain' == perform_phase:
         pretrain_proc(cfger)
     else:
         if (cfger.ckpt_args['only_eval']) and (not 'ckpt_path' in cfger.ckpt_args):

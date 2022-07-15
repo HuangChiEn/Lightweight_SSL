@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import math
 import time
 import collections
@@ -11,6 +10,7 @@ from torch import nn, Tensor
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 
+from model.solver.lr_scheduler import LARS, LinearWarmupCosineAnnealingLR
 from model.losses.barlow_twin_loss import BarlowTwinLoss
 from util_tool.utils import dist_gather, accuracy_at_k
                
@@ -18,7 +18,7 @@ from util_tool.utils import dist_gather, accuracy_at_k
 class Barlow_Twin(pl.LightningModule):
 
     def __init__(self, backbone, proj_hidden_dim, proj_output_dim, lamb, scale_loss, 
-                    lr, weight_decay, momentum, tot_epochs, num_of_cls):
+                    lr, weight_decay, warmup_epochs, tot_epochs, num_of_cls):
         super().__init__()
         self.save_hyperparameters()
         
@@ -39,6 +39,10 @@ class Barlow_Twin(pl.LightningModule):
 
         self.lr = lr
         self.weight_decay = weight_decay
+        self.warmup_epochs = warmup_epochs
+        self.max_epochs = tot_epochs
+
+
 
     def configure_optimizers(self):
         optimizer = LARS(self.parameters(), lr=self.lr, weight_decay=self.weight_decay, trust_coefficient=0.001)
@@ -91,8 +95,9 @@ class Barlow_Twin(pl.LightningModule):
         outs["acc5"] = sum(outs["acc5"]) / n_viw
         metrics = {  # record the linear protocol results
             "lin_loss": outs["loss"],
-            "lin_acc1": outs["acc1"],
-            "lin_acc5": outs["acc5"]
+            "lin_acc1": outs["acc1"].item(),
+            "lin_acc5": outs["acc5"].item(),
+            "barlow_loss":barlow_loss
         }
         self.log_dict(metrics, on_step=True, on_epoch=False, sync_dist=True, prog_bar=True)
 
